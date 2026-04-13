@@ -1,0 +1,98 @@
+version: "3.9"
+
+services:
+
+  # 🌐 API Gateway
+  gateway:
+    build: ../../apps/gateway
+    container_name: gateway
+    restart: always
+    ports:
+      - "80:8080"
+    env_file:
+      - ../../apps/gateway/.env
+    depends_on:
+      - tenant-service
+      - identity-service
+
+  # 🏢 Tenant Service
+  tenant-service:
+    build: ../../services/tenant-service
+    container_name: tenant-service
+    restart: always
+    env_file:
+      - ../../services/tenant-service/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # 🔐 Identity Service
+  identity-service:
+    build: ../../services/identity-service
+    container_name: identity-service
+    restart: always
+    env_file:
+      - ../../services/identity-service/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # 📚 LMS Service
+  lms-service:
+    build: ../../services/lms-service
+    container_name: lms-service
+    restart: always
+    env_file:
+    - ../../services/lms-service/.env
+    depends_on:
+      postgres:
+        condition: service_healthy    
+
+  
+  # 🎨 Frontend (Vue App)
+  web:
+    build: ../../apps/web
+    container_name: web
+    restart: always
+    ports:
+      - "5173:5173"
+    volumes:
+      - ../../apps/web:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_BASE_URL=http://localhost
+    command: npm run dev -- --host
+    depends_on:
+      - gateway        
+
+  # 🐘 PostgreSQL
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ⚡ Redis (for cache / sessions later)
+  redis:
+    image: redis:7
+    container_name: redis
+    restart: always
+
+  # 📡 NATS (for events later)
+  nats:
+    image: nats:latest
+    container_name: nats
+    restart: always
+
+volumes:
+  pgdata:

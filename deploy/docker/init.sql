@@ -1,0 +1,3 @@
+CREATE DATABASE tenant_db;
+CREATE DATABASE identity_db;
+CREATE DATABASE lms_db;
